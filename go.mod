@@ -1,4 +1,4 @@
-module github.com/agoodmu/vault-iic
+module github.com/agoodmu/huaweicloud-vault
 
 go 1.22.0
 
