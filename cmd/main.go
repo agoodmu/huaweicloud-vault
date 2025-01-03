@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"os"
 
-	hwc "github.com/agoodmu/vault-iic/hwcsecretengine"
+	"github.com/agoodmu/huaweicloud-vault/engine"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/vault/api"
 	"github.com/hashicorp/vault/sdk/plugin"
@@ -19,7 +19,7 @@ func main() {
 	tlsProviderFunc := api.VaultPluginTLSProvider(tlsConfig)
 
 	err := plugin.Serve(&plugin.ServeOpts{
-		BackendFactoryFunc: hwc.Factory,
+		BackendFactoryFunc: engine.Factory,
 		TLSProviderFunc:    tlsProviderFunc,
 		Logger:             hclog.New(&hclog.LoggerOptions{Level: hclog.Info}),
 	})
