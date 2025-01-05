@@ -47,8 +47,6 @@ func (b *hwcBackend) createToken(ctx context.Context, s logical.Storage, roleEnt
 	}
 	b.Logger().Info("Creating token", "agency", roleEntry.Agency)
 
-	token := new(hwcToken)
-
 	domainName := "hwstaff_intl_sysadmin"
 	agencyName := "OrganizationAccountAccessAgency"
 	domainDuration := int32(900)
@@ -69,16 +67,13 @@ func (b *hwcBackend) createToken(ctx context.Context, s logical.Storage, roleEnt
 	if err != nil {
 		return nil, err
 	}
-	token.AccessKey = result.Credential.Access
-	token.SecretKey = result.Credential.Secret
-	token.SecurityToken = result.Credential.Securitytoken
-	token.ExpireTime = result.Credential.ExpiresAt
-	return token, nil
+
+	token := hwcToken{AccessKey: result.Credential.Access, SecretKey: result.Credential.Secret, SecurityToken: result.Credential.Securitytoken, ExpireTime: result.Credential.ExpiresAt}
+	return &token, nil
 }
 
 func (b *hwcBackend) createUserCreds(ctx context.Context, req *logical.Request, role *hwcRoleEntry) (*logical.Response, error) {
 	token, err := b.createToken(ctx, req.Storage, role)
-	b.Logger().Info("Creating Creds, PATH:", "hwstaff_intl_sysadmin/OrganizationAccountAccessAgency")
 	if err != nil {
 		return nil, err
 	}
