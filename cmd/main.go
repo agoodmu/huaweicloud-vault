@@ -21,7 +21,7 @@ func main() {
 	err := plugin.Serve(&plugin.ServeOpts{
 		BackendFactoryFunc: engine.Factory,
 		TLSProviderFunc:    tlsProviderFunc,
-		Logger:             hclog.New(&hclog.LoggerOptions{Level: hclog.Info}),
+		Logger:             hclog.New(&hclog.LoggerOptions{Level: hclog.Debug}),
 	})
 	if err != nil {
 		slog.Warn(err.Error())
