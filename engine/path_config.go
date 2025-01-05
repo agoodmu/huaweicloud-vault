@@ -26,7 +26,6 @@ have necessary permission to assume agency.
 `
 
 type hwcConfig struct {
-	Region    string `json:"region"`
 	AccessKey string `json:"access_key"`
 	SecretKey string `json:"secret_key"`
 }
@@ -35,12 +34,6 @@ func pathConfig(b *hwcBackend) *framework.Path {
 	return &framework.Path{
 		Pattern: "config",
 		Fields: map[string]*framework.FieldSchema{
-			"region": {
-				Type:         framework.TypeString,
-				Description:  "The Huawei Cloud Region",
-				Required:     true,
-				DisplayAttrs: &framework.DisplayAttributes{Name: "Region", Sensitive: false},
-			},
 			"access_key": {
 				Type:         framework.TypeString,
 				Description:  "The Huawei Cloud Access Key",
@@ -103,7 +96,8 @@ func (b *hwcBackend) pathConfigRead(ctx context.Context, req *logical.Request, d
 
 	return &logical.Response{
 		Data: map[string]interface{}{
-			"region": config.Region,
+			"access_key": config.AccessKey,
+			"secret_key": config.SecretKey,
 		},
 	}, nil
 }
@@ -121,12 +115,6 @@ func (b *hwcBackend) pathConfigWrite(ctx context.Context, req *logical.Request, 
 			return nil, errors.New("config not found during update operation")
 		}
 		config = new(hwcConfig)
-	}
-
-	if region, ok := data.GetOk("region"); ok {
-		config.Region = region.(string)
-	} else if !ok && createOperation {
-		return nil, fmt.Errorf("missing region in configuration")
 	}
 
 	if accessKey, ok := data.GetOk("access_key"); ok {
