@@ -47,7 +47,7 @@ func (b *hwcBackend) createToken(ctx context.Context, s logical.Storage, roleEnt
 	}
 	b.Logger().Info("Creating token", "agency", roleEntry.Agency)
 
-	var token *hwcToken
+	token := new(hwcToken)
 
 	domainName := "hwstaff_intl_sysadmin"
 	agencyName := "OrganizationAccountAccessAgency"
@@ -69,7 +69,6 @@ func (b *hwcBackend) createToken(ctx context.Context, s logical.Storage, roleEnt
 	if err != nil {
 		return nil, err
 	}
-
 	token.AccessKey = result.Credential.Access
 	token.SecretKey = result.Credential.Secret
 	token.SecurityToken = result.Credential.Securitytoken
