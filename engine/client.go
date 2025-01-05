@@ -12,7 +12,7 @@ func newClient(config *hwcConfig) (*iam.IamClient, error) {
 	var client *iam.IamClient
 	if config.UseAKSK {
 		if config.AccessKey == "" || config.SecretKey == "" {
-			return nil, errors.New("Missing AK/SK Configuration")
+			return nil, errors.New("missing AK/SK Configuration")
 		}
 		globalAuth, err := global.NewCredentialsBuilder().WithAk(config.AccessKey).WithSk(config.SecretKey).SafeBuild()
 		if err != nil {

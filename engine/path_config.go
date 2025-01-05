@@ -35,7 +35,7 @@ func pathConfig(b *hwcBackend) *framework.Path {
 	return &framework.Path{
 		Pattern: "config",
 		Fields: map[string]*framework.FieldSchema{
-			"use_aksk": {
+			"use_key": {
 				Type:         framework.TypeBool,
 				Description:  "Decides if AK/SK is required",
 				Required:     true,
