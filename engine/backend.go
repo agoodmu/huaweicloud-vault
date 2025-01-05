@@ -73,7 +73,7 @@ func backend() *hwcBackend {
 			},
 		},
 		Paths:       framework.PathAppend([]*framework.Path{pathConfig(&b), pathCredentials(&b)}),
-		Secrets:     []*framework.Secret{b.hwcToken()},
+		Secrets:     []*framework.Secret{b.huaweicloud_Token()},
 		BackendType: logical.TypeLogical,
 		Invalidate:  b.invalidate,
 	}

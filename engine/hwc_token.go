@@ -3,31 +3,29 @@ package engine
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
+	"github.com/huaweicloud/huaweicloud-sdk-go-v3/services/iam/v3/model"
 )
 
 const (
-	hwcTokenType = "hwc_token"
+	TokenType = "HuaweiCloud_Temporary"
 )
 
 type hwcToken struct {
-	AccountName   string `json:"account_name"`
 	AccessKey     string `json:"access_key"`
 	SecretKey     string `json:"secret_key"`
 	SecurityToken string `json:"security_token"`
+	ExpireTime    string `json:"expire_time"`
 }
 
-func (b *hwcBackend) hwcToken() *framework.Secret {
+func (b *hwcBackend) huaweicloud_Token() *framework.Secret {
 	return &framework.Secret{
-		Type: hwcTokenType,
+		Type: TokenType,
 		Fields: map[string]*framework.FieldSchema{
-			"account_name": {
-				Type:        framework.TypeString,
-				Description: "Huawei Cloud Account Name",
-			},
 			"access_key": {
 				Type:        framework.TypeString,
 				Description: "Huawei Cloud Access Key",
@@ -40,10 +38,50 @@ func (b *hwcBackend) hwcToken() *framework.Secret {
 				Type:        framework.TypeString,
 				Description: "Huawei Cloud Security Token",
 			},
+			"expire_time": {
+				Type:        framework.TypeString,
+				Description: "Token expires time",
+			},
 		},
 		Revoke: b.tokenRevoke,
 		Renew:  b.tokenRenew,
 	}
+}
+
+func (b *hwcBackend) createTemporaryToken(ctx context.Context, s logical.Storage, path string) (*hwcToken, error) {
+	var token *hwcToken
+	b.Logger().Debug("Trying to get credential for ", path)
+	client, err := b.getClient(ctx, s)
+	if err != nil {
+		return nil, err
+	}
+	domainName := strings.Split(path, "/")[0]
+	agencyName := strings.Split(path, "/")[1]
+	domainDuration := int32(900)
+	result, err := client.CreateTemporaryAccessKeyByAgency(&model.CreateTemporaryAccessKeyByAgencyRequest{
+		Body: &model.CreateTemporaryAccessKeyByAgencyRequestBody{
+			Auth: &model.AgencyAuth{
+				Identity: &model.AgencyAuthIdentity{
+					Methods: []model.AgencyAuthIdentityMethods{model.GetAgencyAuthIdentityMethodsEnum().ASSUME_ROLE},
+					AssumeRole: &model.IdentityAssumerole{
+						AgencyName:      agencyName,
+						DomainName:      &domainName,
+						DurationSeconds: &domainDuration,
+					},
+				},
+			},
+		},
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("error creating Huawei Cloud temporary token: %w", err)
+	}
+
+	token.AccessKey = result.Credential.Access
+	token.SecretKey = result.Credential.Secret
+	token.SecurityToken = result.Credential.Securitytoken
+	token.ExpireTime = result.Credential.ExpiresAt
+	return token, nil
 }
 
 func deleteToken(ctx context.Context, token string) error {
@@ -76,7 +114,6 @@ func createToken(ctx context.Context, account string) (*hwcToken, error) {
 	tokenID := uuid.New().String()
 
 	return &hwcToken{
-		AccountName:   account,
 		AccessKey:     tokenID,
 		SecretKey:     tokenID,
 		SecurityToken: tokenID,
