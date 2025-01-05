@@ -52,7 +52,7 @@ func (b *hwcBackend) getClient(ctx context.Context, s logical.Storage) (*iam.Iam
 		return nil, errors.New("backend configuration does not exists")
 	}
 
-	b.client, err = newClient()
+	b.client, err = newClient(config)
 	if err != nil {
 		return nil, err
 	}

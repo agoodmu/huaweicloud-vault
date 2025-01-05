@@ -26,6 +26,7 @@ have necessary permission to assume agency.
 `
 
 type hwcConfig struct {
+	UseAKSK   bool   `json:"use_key"`
 	AccessKey string `json:"access_key"`
 	SecretKey string `json:"secret_key"`
 }
@@ -34,16 +35,22 @@ func pathConfig(b *hwcBackend) *framework.Path {
 	return &framework.Path{
 		Pattern: "config",
 		Fields: map[string]*framework.FieldSchema{
+			"use_aksk": {
+				Type:         framework.TypeBool,
+				Description:  "Decides if AK/SK is required",
+				Required:     true,
+				DisplayAttrs: &framework.DisplayAttributes{Name: "UseAKSK", Sensitive: false},
+			},
 			"access_key": {
 				Type:         framework.TypeString,
 				Description:  "The Huawei Cloud Access Key",
-				Required:     true,
+				Required:     false,
 				DisplayAttrs: &framework.DisplayAttributes{Name: "AccessKey", Sensitive: true},
 			},
 			"secret_key": {
 				Type:         framework.TypeString,
 				Description:  "The Huawei Cloud Secret Key",
-				Required:     true,
+				Required:     false,
 				DisplayAttrs: &framework.DisplayAttributes{Name: "SecretKey", Sensitive: true},
 			},
 		},

@@ -78,22 +78,22 @@ func (b *hwcBackend) createToken(ctx context.Context, s logical.Storage, roleEnt
 }
 
 func (b *hwcBackend) createUserCreds(ctx context.Context, req *logical.Request, role *hwcRoleEntry) (*logical.Response, error) {
-	//	token, err := b.createToken(ctx, req.Storage, role)
+	token, err := b.createToken(ctx, req.Storage, role)
 	b.Logger().Info("Creating Creds, PATH:", "hwstaff_intl_sysadmin/OrganizationAccountAccessAgency")
-	//	if err != nil {
-	//		return nil, err
-	//	}
+	if err != nil {
+		return nil, err
+	}
 
 	resp := b.Secret(TokenType).Response(map[string]interface{}{
-		"access_key":     "test",
-		"secret_key":     "test",
-		"security_token": "test",
-		"expire_time":    "test",
+		"access_key":     token.AccessKey,
+		"secret_key":     token.SecretKey,
+		"security_token": token.SecurityToken,
+		"expire_time":    token.ExpireTime,
 	}, map[string]interface{}{
-		"access_key":     "test",
-		"secret_key":     "test",
-		"security_token": "test",
-		"expire_time":    "test",
+		"access_key":     token.AccessKey,
+		"secret_key":     token.SecretKey,
+		"security_token": token.SecurityToken,
+		"expire_time":    token.ExpireTime,
 	})
 
 	return resp, nil
