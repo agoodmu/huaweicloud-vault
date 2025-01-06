@@ -21,12 +21,11 @@ const pathConfigHelpDescription = `
 The Huawei Cloud secret backend requires credentials for assuming agency to get
 temporary credentials to access Huawei Cloud.
 
-You must have a valid AK/SK or deploy the Vault on ECS or CCE cluster in order to
-have necessary permission to assume agency.
+You must have a valid AK/SK in order to have necessary permission to assume agency.
 `
 
 type hwcConfig struct {
-	UseAKSK   bool   `json:"use_key"`
+	Region    string `json:"region"`
 	AccessKey string `json:"access_key"`
 	SecretKey string `json:"secret_key"`
 }
@@ -35,22 +34,22 @@ func pathConfig(b *hwcBackend) *framework.Path {
 	return &framework.Path{
 		Pattern: "config",
 		Fields: map[string]*framework.FieldSchema{
-			"use_key": {
+			"region": {
 				Type:         framework.TypeBool,
-				Description:  "Decides if AK/SK is required",
+				Description:  "The region in which resouces will be created",
 				Required:     true,
-				DisplayAttrs: &framework.DisplayAttributes{Name: "UseAKSK", Sensitive: false},
+				DisplayAttrs: &framework.DisplayAttributes{Name: "Region", Sensitive: false},
 			},
 			"access_key": {
 				Type:         framework.TypeString,
 				Description:  "The Huawei Cloud Access Key",
-				Required:     false,
+				Required:     true,
 				DisplayAttrs: &framework.DisplayAttributes{Name: "AccessKey", Sensitive: true},
 			},
 			"secret_key": {
 				Type:         framework.TypeString,
 				Description:  "The Huawei Cloud Secret Key",
-				Required:     false,
+				Required:     true,
 				DisplayAttrs: &framework.DisplayAttributes{Name: "SecretKey", Sensitive: true},
 			},
 		},
@@ -91,7 +90,6 @@ func getConfig(ctx context.Context, s logical.Storage) (*hwcConfig, error) {
 		return nil, fmt.Errorf("error reading root configuration: %w", err)
 	}
 
-	// return the config, we are done
 	return config, nil
 }
 
@@ -103,6 +101,7 @@ func (b *hwcBackend) pathConfigRead(ctx context.Context, req *logical.Request, d
 
 	return &logical.Response{
 		Data: map[string]interface{}{
+			"region":     config.Region,
 			"access_key": config.AccessKey,
 			"secret_key": config.SecretKey,
 		},
