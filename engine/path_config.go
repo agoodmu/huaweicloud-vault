@@ -35,7 +35,7 @@ func pathConfig(b *hwcBackend) *framework.Path {
 		Pattern: "config",
 		Fields: map[string]*framework.FieldSchema{
 			"region": {
-				Type:         framework.TypeBool,
+				Type:         framework.TypeString,
 				Description:  "The region in which resouces will be created",
 				Required:     true,
 				DisplayAttrs: &framework.DisplayAttributes{Name: "Region", Sensitive: false},
@@ -133,6 +133,12 @@ func (b *hwcBackend) pathConfigWrite(ctx context.Context, req *logical.Request, 
 		config.SecretKey = secretKey.(string)
 	} else if !ok && createOperation {
 		return nil, fmt.Errorf("missing secret_key in configuration")
+	}
+
+	if newregion, ok := data.GetOk("region"); ok {
+		config.Region = newregion.(string)
+	} else if !ok && createOperation {
+		return nil, fmt.Errorf("missing region paramter in configuration")
 	}
 
 	entry, err := logical.StorageEntryJSON(configStoragePath, config)

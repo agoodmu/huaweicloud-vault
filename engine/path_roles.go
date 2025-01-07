@@ -20,21 +20,11 @@ You can configure a role to manage a user's token by setting the username field.
 )
 
 type hwcRoleEntry struct {
-	Agency        string        `json:"agency"`
-	AccessKey     string        `json:"access_key"`
-	SecretKey     int           `json:"secret_key"`
-	SecurityToken string        `json:"security_token"`
-	TTL           time.Duration `json:"ttl"`
-	MaxTTL        time.Duration `json:"max_ttl"`
-}
-
-func (r *hwcRoleEntry) toResponseData() map[string]interface{} {
-	respData := map[string]interface{}{
-		"agency":  r.Agency,
-		"ttl":     r.TTL.Seconds(),
-		"max_ttl": r.MaxTTL.Seconds(),
-	}
-	return respData
+	Name        string        `json:"name"`
+	AccountName string        `json:"account_name"`
+	AgencyName  string        `json:"agency_name"`
+	TTL         time.Duration `json:"ttl"`
+	MaxTTL      time.Duration `json:"max_ttl"`
 }
 
 func pathRole(b *hwcBackend) []*framework.Path {
@@ -47,19 +37,33 @@ func pathRole(b *hwcBackend) []*framework.Path {
 					Description: "Name of the role",
 					Required:    true,
 				},
+				"account_name": {
+					Type:        framework.TypeString,
+					Description: "The domain name of the target account",
+					Required:    true,
+				},
+				"agency_name": {
+					Type:        framework.TypeString,
+					Description: "The agency name which will be assumed by the plugin",
+					Required:    true,
+				},
 				"ttl": {
 					Type:        framework.TypeDurationSecond,
 					Description: "Default lease for generated credentials. If not set or set to 0, will use system default.",
+					Required:    false,
+					Default:     900,
 				},
 				"max_ttl": {
 					Type:        framework.TypeDurationSecond,
 					Description: "Maximum time for role. If not set or set to 0, will use system default.",
+					Required:    false,
+					Default:     86400,
 				},
 			},
 			Operations: map[logical.Operation]framework.OperationHandler{
 				logical.ReadOperation:   &framework.PathOperation{Callback: b.pathRolesRead},
 				logical.CreateOperation: &framework.PathOperation{Callback: b.pathRolesWrite},
-				logical.UpdateOperation: &framework.PathOperation{Callback: b.pathRolesWrite},
+				logical.UpdateOperation: &framework.PathOperation{Callback: b.pathRoleUpdate},
 				logical.DeleteOperation: &framework.PathOperation{Callback: b.pathRolesDelete},
 			},
 			ExistenceCheck:  b.pathConfigExistenceCheck,
@@ -111,7 +115,13 @@ func (b *hwcBackend) pathRolesRead(ctx context.Context, req *logical.Request, d 
 	}
 
 	return &logical.Response{
-		Data: entry.toResponseData(),
+		Data: map[string]interface{}{
+			"name":         entry.Name,
+			"account_name": entry.AccountName,
+			"agency_name":  entry.AgencyName,
+			"ttl":          entry.TTL.Seconds(),
+			"max_ttl":      entry.MaxTTL.Seconds(),
+		},
 	}, nil
 }
 
@@ -144,21 +154,77 @@ func (b *hwcBackend) pathRolesWrite(ctx context.Context, req *logical.Request, d
 	}
 
 	if roleEntry == nil {
-		roleEntry = &hwcRoleEntry{}
+		roleEntry = &hwcRoleEntry{Name: name.(string)}
 	}
 
-	createOperation := (req.Operation == logical.CreateOperation)
+	if agencyName, ok := d.GetOk("agency_name"); ok {
+		roleEntry.AgencyName = agencyName.(string)
+	} else {
+		return logical.ErrorResponse("missing agency_name"), nil
+	}
+
+	if accountName, ok := d.GetOk("account_name"); ok {
+		roleEntry.AccountName = accountName.(string)
+	} else {
+		return logical.ErrorResponse("missing account_name"), nil
+	}
 
 	if ttlRaw, ok := d.GetOk("ttl"); ok {
 		roleEntry.TTL = time.Duration(ttlRaw.(int)) * time.Second
-	} else if createOperation {
-		roleEntry.TTL = time.Duration(d.Get("ttl").(int)) * time.Second
+	} else {
+		return logical.ErrorResponse("missing ttl"), nil
 	}
 
 	if maxTTLRaw, ok := d.GetOk("max_ttl"); ok {
 		roleEntry.MaxTTL = time.Duration(maxTTLRaw.(int)) * time.Second
-	} else if createOperation {
-		roleEntry.MaxTTL = time.Duration(d.Get("max_ttl").(int)) * time.Second
+	} else {
+		return logical.ErrorResponse("missing max_ttl"), nil
+	}
+
+	if roleEntry.TTL < 900 {
+		return logical.ErrorResponse("ttl must be greater than 900"), nil
+	}
+
+	if roleEntry.MaxTTL != 0 && roleEntry.TTL > roleEntry.MaxTTL {
+		return logical.ErrorResponse("ttl cannot be greater than max_ttl"), nil
+	}
+
+	if err := setRole(ctx, req.Storage, name.(string), roleEntry); err != nil {
+		return nil, err
+	}
+
+	return nil, nil
+}
+
+func (b *hwcBackend) pathRoleUpdate(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+	name, ok := d.GetOk("name")
+	if !ok {
+		return logical.ErrorResponse("missing role name"), nil
+	}
+
+	roleEntry, err := b.getRole(ctx, req.Storage, name.(string))
+	if err != nil {
+		return nil, err
+	}
+
+	if roleEntry == nil {
+		return logical.ErrorResponse("role is not found"), nil
+	}
+
+	if agencyName, ok := d.GetOk("agency_name"); ok {
+		roleEntry.AgencyName = agencyName.(string)
+	}
+
+	if accountName, ok := d.GetOk("account_name"); ok {
+		roleEntry.AccountName = accountName.(string)
+	}
+
+	if ttlRaw, ok := d.GetOk("ttl"); ok {
+		roleEntry.TTL = time.Duration(ttlRaw.(int)) * time.Second
+	}
+
+	if maxTTLRaw, ok := d.GetOk("max_ttl"); ok {
+		roleEntry.MaxTTL = time.Duration(maxTTLRaw.(int)) * time.Second
 	}
 
 	if roleEntry.MaxTTL != 0 && roleEntry.TTL > roleEntry.MaxTTL {

@@ -20,23 +20,34 @@ based on a particular role. A role can only represent a user token,
 since HashiCups doesn't have other types of tokens.
 `
 
-func pathCredentials(b *hwcBackend) *framework.Path {
-	return &framework.Path{
-		Pattern: "creds/" + framework.GenericNameRegex("name"),
-		Fields: map[string]*framework.FieldSchema{
-			"name": {
-				Type:        framework.TypeLowerCaseString,
-				Description: "Name of the role",
-				Required:    true,
+func pathCredentials(b *hwcBackend) []*framework.Path {
+	return []*framework.Path{
+		{
+			Pattern: "creds/" + framework.GenericNameRegex("name"),
+			Fields: map[string]*framework.FieldSchema{
+				"name": {
+					Type:        framework.TypeLowerCaseString,
+					Description: "Name of the role",
+					Required:    true,
+				},
 			},
+			Callbacks: map[logical.Operation]framework.OperationFunc{
+				logical.ReadOperation:   b.pathCredentialsRead,
+				logical.UpdateOperation: b.pathCredentialsRead,
+			},
+			ExistenceCheck:  b.pathConfigExistenceCheck,
+			HelpSynopsis:    pathCredentialsHelpSyn,
+			HelpDescription: pathCredentialsHelpDesc,
 		},
-		Callbacks: map[logical.Operation]framework.OperationFunc{
-			logical.ReadOperation:   b.pathCredentialsRead,
-			logical.UpdateOperation: b.pathCredentialsRead,
+		{
+			Pattern: "creds/?$",
+			Operations: map[logical.Operation]framework.OperationHandler{
+				logical.ListOperation: &framework.PathOperation{Callback: b.pathCredentialsList},
+			},
+			ExistenceCheck:  b.pathConfigExistenceCheck,
+			HelpSynopsis:    pathRoleListHelpSynopsis,
+			HelpDescription: pathRoleListHelpDescription,
 		},
-		ExistenceCheck:  b.pathConfigExistenceCheck,
-		HelpSynopsis:    pathCredentialsHelpSyn,
-		HelpDescription: pathCredentialsHelpDesc,
 	}
 }
 
@@ -45,20 +56,18 @@ func (b *hwcBackend) createToken(ctx context.Context, s logical.Storage, roleEnt
 	if err != nil {
 		return nil, err
 	}
-	b.Logger().Info("Creating token", "agency", roleEntry.Agency)
-
-	domainName := "hwstaff_intl_sysadmin"
-	agencyName := "OrganizationAccountAccessAgency"
-	domainDuration := int32(900)
+	targetAgencyName := roleEntry.AgencyName
+	targetAccountName := roleEntry.AccountName
+	tokenTTL := int32(roleEntry.TTL.Seconds())
 	result, err := client.CreateTemporaryAccessKeyByAgency(&model.CreateTemporaryAccessKeyByAgencyRequest{
 		Body: &model.CreateTemporaryAccessKeyByAgencyRequestBody{
 			Auth: &model.AgencyAuth{
 				Identity: &model.AgencyAuthIdentity{
 					Methods: []model.AgencyAuthIdentityMethods{model.GetAgencyAuthIdentityMethodsEnum().ASSUME_ROLE},
 					AssumeRole: &model.IdentityAssumerole{
-						AgencyName:      agencyName,
-						DomainName:      &domainName,
-						DurationSeconds: &domainDuration,
+						AgencyName:      targetAgencyName,
+						DomainName:      &targetAccountName,
+						DurationSeconds: &tokenTTL,
 					},
 				},
 			},
@@ -105,4 +114,13 @@ func (b *hwcBackend) pathCredentialsRead(ctx context.Context, req *logical.Reque
 	}
 
 	return b.createUserCreds(ctx, req, roleEntry)
+}
+
+func (b *hwcBackend) pathCredentialsList(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+	entries, err := req.Storage.List(ctx, "creds/")
+	if err != nil {
+		return nil, err
+	}
+
+	return logical.ListResponse(entries), nil
 }
