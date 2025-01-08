@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
@@ -51,10 +52,19 @@ func pathCredentials(b *hwcBackend) []*framework.Path {
 	}
 }
 
-func (b *hwcBackend) createToken(ctx context.Context, s logical.Storage, roleEntry *hwcRoleEntry) (*hwcToken, error) {
-	client, err := b.getClient(ctx, s)
+func (b *hwcBackend) pathCredentialsRead(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+	client, err := b.getClient(ctx, req.Storage)
 	if err != nil {
 		return nil, err
+	}
+	roleName := d.Get("name").(string)
+	roleEntry, err := b.getRole(ctx, req.Storage, roleName)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving role: %w", err)
+	}
+
+	if roleEntry == nil {
+		return nil, errors.New("error retrieving role: role is nil")
 	}
 	targetAgencyName := roleEntry.AgencyName
 	targetAccountName := roleEntry.AccountName
@@ -77,43 +87,24 @@ func (b *hwcBackend) createToken(ctx context.Context, s logical.Storage, roleEnt
 		return nil, err
 	}
 
-	token := hwcToken{AccessKey: result.Credential.Access, SecretKey: result.Credential.Secret, SecurityToken: result.Credential.Securitytoken, ExpireTime: result.Credential.ExpiresAt}
-	return &token, nil
-}
-
-func (b *hwcBackend) createUserCreds(ctx context.Context, req *logical.Request, role *hwcRoleEntry) (*logical.Response, error) {
-	token, err := b.createToken(ctx, req.Storage, role)
+	expireTime, err := time.Parse(time.RFC3339Nano, result.Credential.ExpiresAt)
 	if err != nil {
 		return nil, err
 	}
-
+	localExpireTime := expireTime.In(time.Local)
 	resp := b.Secret(TokenType).Response(map[string]interface{}{
-		"access_key":     token.AccessKey,
-		"secret_key":     token.SecretKey,
-		"security_token": token.SecurityToken,
-		"expire_time":    token.ExpireTime,
+		"access_key":     result.Credential.Access,
+		"secret_key":     result.Credential.Secret,
+		"security_token": result.Credential.Securitytoken,
+		"expire_time":    localExpireTime,
 	}, map[string]interface{}{
-		"access_key":     token.AccessKey,
-		"secret_key":     token.SecretKey,
-		"security_token": token.SecurityToken,
-		"expire_time":    token.ExpireTime,
+		"access_key":     result.Credential.Access,
+		"secret_key":     result.Credential.Secret,
+		"security_token": result.Credential.Securitytoken,
+		"expire_time":    localExpireTime,
 	})
 
 	return resp, nil
-}
-
-func (b *hwcBackend) pathCredentialsRead(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
-	roleName := d.Get("name").(string)
-	roleEntry, err := b.getRole(ctx, req.Storage, roleName)
-	if err != nil {
-		return nil, fmt.Errorf("error retrieving role: %w", err)
-	}
-
-	if roleEntry == nil {
-		return nil, errors.New("error retrieving role: role is nil")
-	}
-
-	return b.createUserCreds(ctx, req, roleEntry)
 }
 
 func (b *hwcBackend) pathCredentialsList(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {

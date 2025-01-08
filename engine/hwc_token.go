@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/uuid"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
 )
@@ -13,14 +12,7 @@ const (
 	TokenType = "HuaweiCloud_Temporary"
 )
 
-type hwcToken struct {
-	AccessKey     string `json:"access_key"`
-	SecretKey     string `json:"secret_key"`
-	SecurityToken string `json:"security_token"`
-	ExpireTime    string `json:"expire_time"`
-}
-
-func (b *hwcBackend) huaweicloud_Token() *framework.Secret {
+func (b *hwcBackend) huaweicloudToken() *framework.Secret {
 	return &framework.Secret{
 		Type: TokenType,
 		Fields: map[string]*framework.FieldSchema{
@@ -70,16 +62,6 @@ func (b *hwcBackend) tokenRevoke(ctx context.Context, req *logical.Request, d *f
 		return nil, fmt.Errorf("error revoking user token: %w", err)
 	}
 	return nil, nil
-}
-
-func createToken(ctx context.Context, account string) (*hwcToken, error) {
-	tokenID := uuid.New().String()
-
-	return &hwcToken{
-		AccessKey:     tokenID,
-		SecretKey:     tokenID,
-		SecurityToken: tokenID,
-	}, nil
 }
 
 func (b *hwcBackend) tokenRenew(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
