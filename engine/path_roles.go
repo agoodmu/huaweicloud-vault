@@ -23,7 +23,7 @@ type hwcTempRoleEntry struct {
 	Name                 string        `json:"name"`
 	AccountName          string        `json:"account_name"`
 	AgencyName           string        `json:"agency_name"`
-	MinimumValidDuration int64         `json:"minimum_valida_duration"`
+	MinimumValidDuration time.Duration `json:"minimum_valida_duration"`
 	TTL                  time.Duration `json:"ttl"`
 	MaxTTL               time.Duration `json:"max_ttl"`
 }
@@ -57,7 +57,7 @@ func pathRole(b *hwcBackend) []*framework.Path {
 					Required:    true,
 				},
 				"minimum_valida_duration": {
-					Type:        framework.TypeInt64,
+					Type:        framework.TypeDurationSecond,
 					Description: "The minimum valid period of the temporary credentials",
 					Required:    false,
 					Default:     900,
@@ -225,7 +225,7 @@ func (b *hwcBackend) pathTempRoleWrite(ctx context.Context, req *logical.Request
 	}
 
 	if minimumDuration, ok := d.GetOk("minimum_valida_duration"); ok {
-		roleEntry.MinimumValidDuration = minimumDuration.(int64)
+		roleEntry.MinimumValidDuration = time.Duration(minimumDuration.(int)) * time.Second
 	}
 
 	if ttlRaw, ok := d.GetOk("ttl"); ok {
