@@ -73,7 +73,14 @@ func (b *hwcBackend) pathTempCredentialsRead(ctx context.Context, req *logical.R
 	if err != nil {
 		return logical.ErrorResponse("failed to decode credential data: %s", err.Error()), err
 	}
-	if credentials != nil && credentials.ExpireTime.Before(time.Now().Add(time.Second*roleEntry.)){}
+	if credentials != nil && credentials.ExpireTime.Before(time.Now().Add(time.Second*time.Duration(roleEntry.MinimumValidDuration))) {
+		return b.Secret(TokenType).Response(map[string]interface{}{
+			"access_key":     credentials.AccessKey,
+			"secret_key":     credentials.SecretKey,
+			"security_token": credentials.SecurityToken,
+			"expire_time":    credentials.ExpireTime,
+		}, nil), nil
+	}
 	client, err := b.getClient(ctx, req.Storage)
 	if err != nil {
 		return logical.ErrorResponse("failed to get backend client: %s", err.Error()), err
@@ -110,7 +117,13 @@ func (b *hwcBackend) pathTempCredentialsRead(ctx context.Context, req *logical.R
 		"secret_key":     result.Credential.Secret,
 		"security_token": result.Credential.Securitytoken,
 		"expire_time":    localExpireTime,
-	}, nil)
+	}, map[string]interface{}{
+		"access_key":     result.Credential.Access,
+		"secret_key":     result.Credential.Secret,
+		"security_token": result.Credential.Securitytoken,
+		"expire_time":    localExpireTime,
+	},
+	)
 
 	return resp, nil
 }
