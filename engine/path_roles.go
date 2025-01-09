@@ -23,7 +23,7 @@ type hwcTempRoleEntry struct {
 	Name                 string        `json:"name"`
 	AccountName          string        `json:"account_name"`
 	AgencyName           string        `json:"agency_name"`
-	MinimumValidDuration time.Duration `json:"minimum_valida_duration"`
+	MinimumValidDuration time.Duration `json:"minimum_valid_duration"`
 	TTL                  time.Duration `json:"ttl"`
 	MaxTTL               time.Duration `json:"max_ttl"`
 }
@@ -56,7 +56,7 @@ func pathRole(b *hwcBackend) []*framework.Path {
 					Description: "The agency name which will be assumed by the plugin",
 					Required:    true,
 				},
-				"minimum_valida_duration": {
+				"minimum_valid_duration": {
 					Type:        framework.TypeDurationSecond,
 					Description: "The minimum valid period of the temporary credentials",
 					Required:    false,
@@ -211,34 +211,11 @@ func (b *hwcBackend) pathTempRoleWrite(ctx context.Context, req *logical.Request
 	}
 
 	roleEntry = hwcTempRoleEntry{Name: name.(string)}
-
-	if agencyName, ok := d.GetOk("agency_name"); ok {
-		roleEntry.AgencyName = agencyName.(string)
-	} else {
-		return logical.ErrorResponse("missing agency_name"), nil
-	}
-
-	if accountName, ok := d.GetOk("account_name"); ok {
-		roleEntry.AccountName = accountName.(string)
-	} else {
-		return logical.ErrorResponse("missing account_name"), nil
-	}
-
-	if minimumDuration, ok := d.GetOk("minimum_valida_duration"); ok {
-		roleEntry.MinimumValidDuration = time.Duration(minimumDuration.(int)) * time.Second
-	}
-
-	if ttlRaw, ok := d.GetOk("ttl"); ok {
-		roleEntry.TTL = time.Duration(ttlRaw.(int)) * time.Second
-	} else {
-		return logical.ErrorResponse("missing ttl"), nil
-	}
-
-	if maxTTLRaw, ok := d.GetOk("max_ttl"); ok {
-		roleEntry.MaxTTL = time.Duration(maxTTLRaw.(int)) * time.Second
-	} else {
-		return logical.ErrorResponse("missing max_ttl"), nil
-	}
+	roleEntry.AccountName = d.Get("account_name").(string)
+	roleEntry.AgencyName = d.Get("agency_name").(string)
+	roleEntry.MinimumValidDuration = time.Duration(d.Get("minimum_valid_duration").(int)) * time.Second
+	roleEntry.TTL = time.Duration(d.Get("ttl").(int)) * time.Second
+	roleEntry.MaxTTL = time.Duration(d.Get("max_ttl").(int)) * time.Second
 
 	if roleEntry.TTL < 900 {
 		return logical.ErrorResponse("ttl must be greater than 900"), nil
