@@ -73,7 +73,7 @@ func (b *hwcBackend) pathTempCredentialsRead(ctx context.Context, req *logical.R
 	if err != nil {
 		return logical.ErrorResponse("failed to decode credential data: %s", err.Error()), err
 	}
-	if credentials != nil && credentials.ExpireTime.Before(time.Now().Add(time.Second*time.Duration(roleEntry.MinimumValidDuration))) {
+	if credentials != nil && credentials.ExpireTime.Before(time.Now().Add(roleEntry.MinimumDuration)) {
 		return b.Secret(TokenType).Response(map[string]interface{}{
 			"access_key":     credentials.AccessKey,
 			"secret_key":     credentials.SecretKey,

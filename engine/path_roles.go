@@ -20,12 +20,12 @@ You can configure a role to manage a user's token by setting the username field.
 )
 
 type hwcTempRoleEntry struct {
-	Name                 string        `json:"name"`
-	AccountName          string        `json:"account_name"`
-	AgencyName           string        `json:"agency_name"`
-	MinimumValidDuration time.Duration `json:"minimum_valid_duration"`
-	TTL                  time.Duration `json:"ttl"`
-	MaxTTL               time.Duration `json:"max_ttl"`
+	Name            string        `json:"name"`
+	AccountName     string        `json:"account_name"`
+	AgencyName      string        `json:"agency_name"`
+	MinimumDuration time.Duration `json:"minimum_duration"`
+	TTL             time.Duration `json:"ttl"`
+	MaxTTL          time.Duration `json:"max_ttl"`
 }
 
 type hwcStaticRoleEntry struct {
@@ -56,7 +56,7 @@ func pathRole(b *hwcBackend) []*framework.Path {
 					Description: "The agency name which will be assumed by the plugin",
 					Required:    true,
 				},
-				"minimum_valid_duration": {
+				"minimum_duration": {
 					Type:        framework.TypeDurationSecond,
 					Description: "The minimum valid period of the temporary credentials",
 					Required:    false,
@@ -66,7 +66,7 @@ func pathRole(b *hwcBackend) []*framework.Path {
 					Type:        framework.TypeDurationSecond,
 					Description: "Default lease for generated credentials. If not set or set to 0, will use system default.",
 					Required:    false,
-					Default:     900,
+					Default:     7200,
 				},
 				"max_ttl": {
 					Type:        framework.TypeDurationSecond,
@@ -78,7 +78,7 @@ func pathRole(b *hwcBackend) []*framework.Path {
 			Operations: map[logical.Operation]framework.OperationHandler{
 				logical.ReadOperation:   &framework.PathOperation{Callback: b.pathTempRoleRead},
 				logical.CreateOperation: &framework.PathOperation{Callback: b.pathTempRoleWrite},
-				logical.UpdateOperation: &framework.PathOperation{Callback: b.pathRoleUpdate},
+				logical.UpdateOperation: &framework.PathOperation{Callback: b.pathTempRoleUpdate},
 				logical.DeleteOperation: &framework.PathOperation{Callback: b.deletePath},
 			},
 			ExistenceCheck:  b.pathConfigExistenceCheck,
@@ -105,6 +105,18 @@ func pathRole(b *hwcBackend) []*framework.Path {
 					Required:     false,
 					DisplayAttrs: &framework.DisplayAttributes{Name: "Permissions"},
 				},
+				"ttl": {
+					Type:        framework.TypeDurationSecond,
+					Description: "Default lease for generated credentials. If not set or set to 0, will use system default.",
+					Required:    false,
+					Default:     7200,
+				},
+				"max_ttl": {
+					Type:        framework.TypeDurationSecond,
+					Description: "Maximum time for role. If not set or set to 0, will use system default.",
+					Required:    false,
+					Default:     86400,
+				},
 			},
 			Operations:      map[logical.Operation]framework.OperationHandler{},
 			ExistenceCheck:  b.pathConfigExistenceCheck,
@@ -121,28 +133,6 @@ func pathRole(b *hwcBackend) []*framework.Path {
 			HelpDescription: pathRoleListHelpDescription,
 		},
 	}
-}
-
-func (b *hwcBackend) getRole(ctx context.Context, s logical.Storage, name string) (*hwcTempRoleEntry, error) {
-	if name == "" {
-		return nil, fmt.Errorf("missing role name")
-	}
-
-	entry, err := s.Get(ctx, "role/"+name)
-	if err != nil {
-		return nil, err
-	}
-
-	if entry == nil {
-		return nil, nil
-	}
-
-	var role hwcTempRoleEntry
-
-	if err := entry.DecodeJSON(&role); err != nil {
-		return nil, err
-	}
-	return &role, nil
 }
 
 func (b *hwcBackend) pathTempRoleRead(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
@@ -167,31 +157,14 @@ func (b *hwcBackend) pathTempRoleRead(ctx context.Context, req *logical.Request,
 
 	return &logical.Response{
 		Data: map[string]interface{}{
-			"name":                    role.Name,
-			"account_name":            role.AccountName,
-			"agency_name":             role.AgencyName,
-			"minimum_valida_duration": role.MinimumValidDuration,
-			"ttl":                     role.TTL.Seconds(),
-			"max_ttl":                 role.MaxTTL.Seconds(),
+			"name":             role.Name,
+			"account_name":     role.AccountName,
+			"agency_name":      role.AgencyName,
+			"minimum_duration": role.MinimumDuration.Seconds(),
+			"ttl":              role.TTL.Seconds(),
+			"max_ttl":          role.MaxTTL.Seconds(),
 		},
 	}, nil
-}
-
-func setRole(ctx context.Context, s logical.Storage, path string, roleEntry *hwcTempRoleEntry) error {
-	entry, err := logical.StorageEntryJSON(path, roleEntry)
-	if err != nil {
-		return err
-	}
-
-	if entry == nil {
-		return fmt.Errorf("failed to create storage entry for role")
-	}
-
-	if err := s.Put(ctx, entry); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (b *hwcBackend) pathTempRoleWrite(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
@@ -203,17 +176,26 @@ func (b *hwcBackend) pathTempRoleWrite(ctx context.Context, req *logical.Request
 
 	entry, err := req.Storage.Get(ctx, req.Path)
 	if err != nil {
-		return logical.ErrorResponse("failed to fetch data from %s", req.Path), nil
+		return nil, fmt.Errorf("failed to fetch data from %s", req.Path)
 	}
 
 	if entry != nil {
-		return logical.ErrorResponse("The path already exists, use patch subcommand to modify it if you want to change the path"), nil
+		return nil, fmt.Errorf("the path already exists, use patch subcommand to modify it if you want to change the path")
 	}
 
 	roleEntry = hwcTempRoleEntry{Name: name.(string)}
-	roleEntry.AccountName = d.Get("account_name").(string)
-	roleEntry.AgencyName = d.Get("agency_name").(string)
-	roleEntry.MinimumValidDuration = time.Duration(d.Get("minimum_valid_duration").(int)) * time.Second
+	if accountName, ok := d.GetOk("account_name"); ok {
+		roleEntry.AccountName = accountName.(string)
+	} else {
+		return nil, fmt.Errorf("account_name parameter is missing")
+	}
+	if agencyName, ok := d.GetOk("agency_name"); ok {
+		roleEntry.AgencyName = agencyName.(string)
+	} else {
+		return nil, fmt.Errorf("agency_name parameter is missing")
+	}
+
+	roleEntry.MinimumDuration = time.Duration(d.Get("minimum_duration").(int)) * time.Second
 	roleEntry.TTL = time.Duration(d.Get("ttl").(int)) * time.Second
 	roleEntry.MaxTTL = time.Duration(d.Get("max_ttl").(int)) * time.Second
 
@@ -226,33 +208,44 @@ func (b *hwcBackend) pathTempRoleWrite(ctx context.Context, req *logical.Request
 	}
 
 	if err := b.writeDataToPath(ctx, req, roleEntry); err != nil {
-		return logical.ErrorResponse("failed to write data to the path %s", req.Path), nil
+		return nil, fmt.Errorf("failed to write data to the path %s", req.Path)
 	}
 
 	return nil, nil
 }
 
-func (b *hwcBackend) pathRoleUpdate(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
-	name, ok := d.GetOk("name")
+func (b *hwcBackend) pathTempRoleUpdate(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+	_, ok := d.GetOk("name")
 	if !ok {
 		return logical.ErrorResponse("missing role name"), nil
 	}
 
-	roleEntry, err := b.getRole(ctx, req.Storage, name.(string))
+	entry, err := req.Storage.Get(ctx, req.Path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to fetch data from %s", req.Path)
 	}
 
-	if roleEntry == nil {
-		return logical.ErrorResponse("role is not found"), nil
+	if entry == nil {
+		return nil, fmt.Errorf("data for path %s is nil", req.Path)
+	}
+
+	var roleEntry *hwcTempRoleEntry
+
+	err = entry.DecodeJSON(&roleEntry)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode data %s: %s", req.Path, err.Error())
+	}
+
+	if accountName, ok := d.GetOk("account_name"); ok {
+		roleEntry.AccountName = accountName.(string)
 	}
 
 	if agencyName, ok := d.GetOk("agency_name"); ok {
 		roleEntry.AgencyName = agencyName.(string)
 	}
 
-	if accountName, ok := d.GetOk("account_name"); ok {
-		roleEntry.AccountName = accountName.(string)
+	if minimumDuration, ok := d.GetOk("minimum_duration"); ok {
+		roleEntry.MinimumDuration = time.Duration(minimumDuration.(int)) * time.Second
 	}
 
 	if ttlRaw, ok := d.GetOk("ttl"); ok {
@@ -267,9 +260,8 @@ func (b *hwcBackend) pathRoleUpdate(ctx context.Context, req *logical.Request, d
 		return logical.ErrorResponse("ttl cannot be greater than max_ttl"), nil
 	}
 
-	if err := setRole(ctx, req.Storage, name.(string), roleEntry); err != nil {
-		return nil, err
+	if err := b.writeDataToPath(ctx, req, roleEntry); err != nil {
+		return nil, fmt.Errorf("failed to write data to the path %s", req.Path)
 	}
-
 	return nil, nil
 }
