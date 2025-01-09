@@ -20,12 +20,11 @@ You can configure a role to manage a user's token by setting the username field.
 )
 
 type hwcTempRoleEntry struct {
-	Name            string        `json:"name"`
-	AccountName     string        `json:"account_name"`
-	AgencyName      string        `json:"agency_name"`
-	MinimumDuration time.Duration `json:"minimum_duration"`
-	TTL             time.Duration `json:"ttl"`
-	MaxTTL          time.Duration `json:"max_ttl"`
+	Name        string        `json:"name"`
+	AccountName string        `json:"account_name"`
+	AgencyName  string        `json:"agency_name"`
+	TTL         time.Duration `json:"ttl"`
+	MaxTTL      time.Duration `json:"max_ttl"`
 }
 
 type hwcStaticRoleEntry struct {
@@ -55,12 +54,6 @@ func pathRole(b *hwcBackend) []*framework.Path {
 					Type:        framework.TypeString,
 					Description: "The agency name which will be assumed by the plugin",
 					Required:    true,
-				},
-				"minimum_duration": {
-					Type:        framework.TypeDurationSecond,
-					Description: "The minimum valid period of the temporary credentials",
-					Required:    false,
-					Default:     900,
 				},
 				"ttl": {
 					Type:        framework.TypeDurationSecond,
@@ -157,12 +150,11 @@ func (b *hwcBackend) pathTempRoleRead(ctx context.Context, req *logical.Request,
 
 	return &logical.Response{
 		Data: map[string]interface{}{
-			"name":             role.Name,
-			"account_name":     role.AccountName,
-			"agency_name":      role.AgencyName,
-			"minimum_duration": role.MinimumDuration.Seconds(),
-			"ttl":              role.TTL.Seconds(),
-			"max_ttl":          role.MaxTTL.Seconds(),
+			"name":         role.Name,
+			"account_name": role.AccountName,
+			"agency_name":  role.AgencyName,
+			"ttl":          role.TTL.Seconds(),
+			"max_ttl":      role.MaxTTL.Seconds(),
 		},
 	}, nil
 }
@@ -195,7 +187,6 @@ func (b *hwcBackend) pathTempRoleWrite(ctx context.Context, req *logical.Request
 		return nil, fmt.Errorf("agency_name parameter is missing")
 	}
 
-	roleEntry.MinimumDuration = time.Duration(d.Get("minimum_duration").(int)) * time.Second
 	roleEntry.TTL = time.Duration(d.Get("ttl").(int)) * time.Second
 	roleEntry.MaxTTL = time.Duration(d.Get("max_ttl").(int)) * time.Second
 
@@ -242,10 +233,6 @@ func (b *hwcBackend) pathTempRoleUpdate(ctx context.Context, req *logical.Reques
 
 	if agencyName, ok := d.GetOk("agency_name"); ok {
 		roleEntry.AgencyName = agencyName.(string)
-	}
-
-	if minimumDuration, ok := d.GetOk("minimum_duration"); ok {
-		roleEntry.MinimumDuration = time.Duration(minimumDuration.(int)) * time.Second
 	}
 
 	if ttlRaw, ok := d.GetOk("ttl"); ok {

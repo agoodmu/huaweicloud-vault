@@ -14,13 +14,6 @@ const pathCredentialsHelpSyn = `
 Generate a HashiCups API token from a specific Vault role.
 `
 
-type hwcTempCredentials struct {
-	AccessKey     string    `json:"access_key"`
-	SecretKey     string    `json:"secret_key"`
-	SecurityToken string    `json:"security_token"`
-	ExpireTime    time.Time `json:"expire_time"`
-}
-
 const pathCredentialsHelpDesc = `
 This path generates a HashiCups API user tokens
 based on a particular role. A role can only represent a user token,
@@ -50,7 +43,6 @@ func pathCredentials(b *hwcBackend) []*framework.Path {
 
 func (b *hwcBackend) pathTempCredentialsRead(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	var roleEntry *hwcTempRoleEntry
-	var credentials *hwcTempCredentials
 	roleName := d.Get("name").(string)
 	roledata, err := req.Storage.Get(ctx, "role/"+roleName)
 	if err != nil {
@@ -64,22 +56,6 @@ func (b *hwcBackend) pathTempCredentialsRead(ctx context.Context, req *logical.R
 		return nil, fmt.Errorf("failed to decode role data: %s", err.Error())
 	}
 
-	credsData, err := b.readDataFromPath(ctx, req)
-	if err != nil {
-		return logical.ErrorResponse("failed to read path %s: %s", req.Path, err.Error()), err
-	}
-	if credentials != nil && credentials.ExpireTime.After(time.Now().Add(roleEntry.MinimumDuration)) {
-		err = credsData.DecodeJSON(&credentials)
-		if err != nil {
-			return logical.ErrorResponse("failed to decode credential data: %s", err.Error()), err
-		}
-		return b.Secret(TokenType).Response(map[string]interface{}{
-			"access_key":     credentials.AccessKey,
-			"secret_key":     credentials.SecretKey,
-			"security_token": credentials.SecurityToken,
-			"expire_time":    credentials.ExpireTime,
-		}, nil), nil
-	}
 	client, err := b.getClient(ctx, req.Storage)
 	if err != nil {
 		return logical.ErrorResponse("failed to get backend client: %s", err.Error()), err
@@ -117,17 +93,6 @@ func (b *hwcBackend) pathTempCredentialsRead(ctx context.Context, req *logical.R
 		"security_token": result.Credential.Securitytoken,
 		"expire_time":    localExpireTime,
 	}, nil)
-
-	err = b.writeDataToPath(ctx, req, map[string]interface{}{
-		"access_key":     result.Credential.Access,
-		"secret_key":     result.Credential.Secret,
-		"security_token": result.Credential.Securitytoken,
-		"expire_time":    localExpireTime,
-	})
-
-	if err != nil {
-		b.Logger().Error("failed to write credentials", "PATH", req.Path, "Error", err.Error())
-	}
 
 	return resp, nil
 }
