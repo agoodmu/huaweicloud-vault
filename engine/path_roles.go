@@ -167,11 +167,12 @@ func (b *hwcBackend) pathTempRoleRead(ctx context.Context, req *logical.Request,
 
 	return &logical.Response{
 		Data: map[string]interface{}{
-			"name":         role.Name,
-			"account_name": role.AccountName,
-			"agency_name":  role.AgencyName,
-			"ttl":          role.TTL.Seconds(),
-			"max_ttl":      role.MaxTTL.Seconds(),
+			"name":                    role.Name,
+			"account_name":            role.AccountName,
+			"agency_name":             role.AgencyName,
+			"minimum_valida_duration": role.MinimumValidDuration,
+			"ttl":                     role.TTL.Seconds(),
+			"max_ttl":                 role.MaxTTL.Seconds(),
 		},
 	}, nil
 }
@@ -221,6 +222,10 @@ func (b *hwcBackend) pathTempRoleWrite(ctx context.Context, req *logical.Request
 		roleEntry.AccountName = accountName.(string)
 	} else {
 		return logical.ErrorResponse("missing account_name"), nil
+	}
+
+	if minimumDuration, ok := d.GetOk("minimum_valida_duration"); ok {
+		roleEntry.MinimumValidDuration = minimumDuration.(int64)
 	}
 
 	if ttlRaw, ok := d.GetOk("ttl"); ok {
