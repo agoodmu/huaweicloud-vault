@@ -2,7 +2,6 @@ package engine
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -55,31 +54,36 @@ func (b *hwcBackend) pathTempCredentialsRead(ctx context.Context, req *logical.R
 	roleName := d.Get("name").(string)
 	roledata, err := req.Storage.Get(ctx, "role/"+roleName)
 	if err != nil {
-		return logical.ErrorResponse("failed to get data for role %s", roleName), fmt.Errorf("error retrieving role: %w", err)
+		return nil, fmt.Errorf("error retrieving role %s: %w", req.Path, err)
+	}
+	if roledata == nil {
+		return nil, fmt.Errorf("role %s does not contain necessary data", roleName)
 	}
 	err = roledata.DecodeJSON(&roleEntry)
 	if err != nil {
-		return logical.ErrorResponse("failed to decode role data: %s", err.Error()), err
+		return nil, fmt.Errorf("failed to decode role data: %s", err.Error())
 	}
 
-	if roleEntry == nil {
-		return logical.ErrorResponse("role %s does not contain necessary data"), errors.New("error retrieving role: role is nil")
-	}
 	credsData, err := b.readDataFromPath(ctx, req)
 	if err != nil {
 		return logical.ErrorResponse("failed to read path %s: %s", req.Path, err.Error()), err
 	}
-	err = credsData.DecodeJSON(&credentials)
-	if err != nil {
-		return logical.ErrorResponse("failed to decode credential data: %s", err.Error()), err
-	}
 	if credentials != nil && credentials.ExpireTime.Before(time.Now().Add(roleEntry.MinimumDuration)) {
+		err = credsData.DecodeJSON(&credentials)
+		if err != nil {
+			return logical.ErrorResponse("failed to decode credential data: %s", err.Error()), err
+		}
 		return b.Secret(TokenType).Response(map[string]interface{}{
 			"access_key":     credentials.AccessKey,
 			"secret_key":     credentials.SecretKey,
 			"security_token": credentials.SecurityToken,
 			"expire_time":    credentials.ExpireTime,
-		}, nil), nil
+		}, map[string]interface{}{
+			"access_key":     credentials.AccessKey,
+			"secret_key":     credentials.SecretKey,
+			"security_token": credentials.SecurityToken,
+			"expire_time":    credentials.ExpireTime,
+		}), nil
 	}
 	client, err := b.getClient(ctx, req.Storage)
 	if err != nil {
