@@ -68,7 +68,7 @@ func (b *hwcBackend) pathTempCredentialsRead(ctx context.Context, req *logical.R
 	if err != nil {
 		return logical.ErrorResponse("failed to read path %s: %s", req.Path, err.Error()), err
 	}
-	if credentials != nil && credentials.ExpireTime.Before(time.Now().Add(roleEntry.MinimumDuration)) {
+	if credentials != nil && credentials.ExpireTime.After(time.Now().Add(roleEntry.MinimumDuration)) {
 		err = credsData.DecodeJSON(&credentials)
 		if err != nil {
 			return logical.ErrorResponse("failed to decode credential data: %s", err.Error()), err
@@ -78,12 +78,7 @@ func (b *hwcBackend) pathTempCredentialsRead(ctx context.Context, req *logical.R
 			"secret_key":     credentials.SecretKey,
 			"security_token": credentials.SecurityToken,
 			"expire_time":    credentials.ExpireTime,
-		}, map[string]interface{}{
-			"access_key":     credentials.AccessKey,
-			"secret_key":     credentials.SecretKey,
-			"security_token": credentials.SecurityToken,
-			"expire_time":    credentials.ExpireTime,
-		}), nil
+		}, nil), nil
 	}
 	client, err := b.getClient(ctx, req.Storage)
 	if err != nil {
@@ -121,13 +116,18 @@ func (b *hwcBackend) pathTempCredentialsRead(ctx context.Context, req *logical.R
 		"secret_key":     result.Credential.Secret,
 		"security_token": result.Credential.Securitytoken,
 		"expire_time":    localExpireTime,
-	}, map[string]interface{}{
+	}, nil)
+
+	err = b.writeDataToPath(ctx, req, map[string]interface{}{
 		"access_key":     result.Credential.Access,
 		"secret_key":     result.Credential.Secret,
 		"security_token": result.Credential.Securitytoken,
 		"expire_time":    localExpireTime,
-	},
-	)
+	})
+
+	if err != nil {
+		b.Logger().Error("failed to write credentials", "PATH", req.Path, "Error", err.Error())
+	}
 
 	return resp, nil
 }
