@@ -27,14 +27,6 @@ type hwcTempRoleEntry struct {
 	MaxTTL      time.Duration `json:"max_ttl"`
 }
 
-type hwcStaticRoleEntry struct {
-	Name        string        `json:"name"`
-	AccountName string        `json:"account_name"`
-	Permissions []string      `json:"permissions"`
-	TTL         time.Duration `json:"ttl"`
-	MaxTTL      time.Duration `json:"max_ttl"`
-}
-
 func pathRole(b *hwcBackend) []*framework.Path {
 	return []*framework.Path{
 		{
@@ -77,44 +69,6 @@ func pathRole(b *hwcBackend) []*framework.Path {
 			ExistenceCheck:  b.pathConfigExistenceCheck,
 			HelpSynopsis:    pathRoleHelpSynopsis,
 			HelpDescription: pathRoleHelpDescription,
-		},
-		{
-			Pattern: "role/static/" + framework.GenericNameRegex("name"),
-			Fields: map[string]*framework.FieldSchema{
-				"name": {
-					Type:        framework.TypeLowerCaseString,
-					Description: "Name of the role",
-					Required:    true,
-				},
-				"account_name": {
-					Type:         framework.TypeString,
-					Description:  "The Name of the account in which the AK/SK will be created",
-					Required:     true,
-					DisplayAttrs: &framework.DisplayAttributes{Name: "AccountName"},
-				},
-				"permissions": {
-					Type:         framework.TypeCommaStringSlice,
-					Description:  "Huawei Cloud permissions for the role",
-					Required:     false,
-					DisplayAttrs: &framework.DisplayAttributes{Name: "Permissions"},
-				},
-				"ttl": {
-					Type:        framework.TypeDurationSecond,
-					Description: "Default lease for generated credentials. If not set or set to 0, will use system default.",
-					Required:    false,
-					Default:     7200,
-				},
-				"max_ttl": {
-					Type:        framework.TypeDurationSecond,
-					Description: "Maximum time for role. If not set or set to 0, will use system default.",
-					Required:    false,
-					Default:     86400,
-				},
-			},
-			Operations:      map[logical.Operation]framework.OperationHandler{},
-			ExistenceCheck:  b.pathConfigExistenceCheck,
-			HelpSynopsis:    pathRoleListHelpSynopsis,
-			HelpDescription: pathRoleListHelpDescription,
 		},
 		{
 			Pattern: "role/?$",
