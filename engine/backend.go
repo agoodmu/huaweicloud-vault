@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 
@@ -73,7 +74,7 @@ func backend() *hwcBackend {
 			},
 		},
 		Paths:       framework.PathAppend(pathRole(&b), pathCredentials(&b), []*framework.Path{pathConfig(&b)}),
-		Secrets:     []*framework.Secret{b.huaweicloudToken()},
+		Secrets:     []*framework.Secret{b.huaweicloudTemporaryToken()},
 		BackendType: logical.TypeLogical,
 		Invalidate:  b.invalidate,
 	}
@@ -86,4 +87,48 @@ func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend,
 		return nil, err
 	}
 	return b, nil
+}
+
+func (b *hwcBackend) writeDataToPath(ctx context.Context, req *logical.Request, data interface{}) error {
+	entry, err := logical.StorageEntryJSON(req.Path, data)
+	if err != nil {
+		return err
+	}
+	if entry == nil {
+		return fmt.Errorf("failed to create storage entry for the path %s", req.Path)
+	}
+
+	if err := req.Storage.Put(ctx, entry); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (b *hwcBackend) readDataFromPath(ctx context.Context, req *logical.Request) (*logical.StorageEntry, error) {
+	entry, err := req.Storage.Get(ctx, req.Path)
+	if err != nil {
+		return nil, err
+	}
+	return entry, nil
+}
+
+func (b *hwcBackend) deletePath(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+	_, ok := d.GetOk("name")
+	if !ok {
+		return nil, fmt.Errorf("data for path %s does not exist", req.Path)
+	}
+	err := req.Storage.Delete(ctx, req.Path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete %s: %s", req.Path, err.Error())
+	}
+
+	return nil, nil
+}
+
+func (b *hwcBackend) listPaths(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+	entries, err := req.Storage.List(ctx, req.Path)
+	if err != nil {
+		return nil, err
+	}
+	return logical.ListResponse(entries), nil
 }
