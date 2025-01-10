@@ -2,7 +2,6 @@ package engine
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/hashicorp/vault/sdk/framework"
@@ -25,14 +24,15 @@ You must have a valid AK/SK in order to have necessary permission to assume agen
 `
 
 type hwcConfig struct {
-	Region    string `json:"region"`
-	AccessKey string `json:"access_key"`
-	SecretKey string `json:"secret_key"`
+	Region           string `json:"region"`
+	AccessKey        string `json:"access_key"`
+	SecretKey        string `json:"secret_key"`
+	ManagementAgency string `json:"management_agency"`
 }
 
 func pathConfig(b *hwcBackend) *framework.Path {
 	return &framework.Path{
-		Pattern: "config",
+		Pattern: configStoragePath,
 		Fields: map[string]*framework.FieldSchema{
 			"region": {
 				Type:         framework.TypeString,
@@ -52,115 +52,127 @@ func pathConfig(b *hwcBackend) *framework.Path {
 				Required:     true,
 				DisplayAttrs: &framework.DisplayAttributes{Name: "SecretKey", Sensitive: true},
 			},
+			"management_agency": {
+				Type:         framework.TypeString,
+				Description:  "The delegated agency in member account",
+				Required:     false,
+				DisplayAttrs: &framework.DisplayAttributes{Name: "ManagementAgency", Sensitive: false},
+			},
 		},
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.ReadOperation:   &framework.PathOperation{Callback: b.pathConfigRead},
 			logical.CreateOperation: &framework.PathOperation{Callback: b.pathConfigWrite},
-			logical.UpdateOperation: &framework.PathOperation{Callback: b.pathConfigWrite},
-			logical.DeleteOperation: &framework.PathOperation{Callback: b.pathConfigDelete},
+			logical.UpdateOperation: &framework.PathOperation{Callback: b.pathConfigUpdate},
+			logical.DeleteOperation: &framework.PathOperation{Callback: b.deletePath},
 		},
-		ExistenceCheck:  b.pathConfigExistenceCheck,
+		ExistenceCheck:  b.pathExistenceCheck,
 		HelpSynopsis:    pathConfigHelpSynopsis,
 		HelpDescription: pathConfigHelpDescription,
 	}
 }
 
-// pathConfigExistenceCheck verifies if the configuration exists.
-func (b *hwcBackend) pathConfigExistenceCheck(ctx context.Context, req *logical.Request, data *framework.FieldData) (bool, error) {
-	out, err := req.Storage.Get(ctx, req.Path)
+func (b *hwcBackend) pathConfigRead(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+	configData, err := req.Storage.Get(ctx, req.Path)
 	if err != nil {
-		return false, fmt.Errorf("existence check failed: %w, path is %s", err, req.Path)
+		return nil, fmt.Errorf("failed to get data at %s: %s", req.Path, err.Error())
 	}
-
-	return out != nil, nil
-}
-
-func getConfig(ctx context.Context, s logical.Storage) (*hwcConfig, error) {
-	entry, err := s.Get(ctx, configStoragePath)
-	if err != nil {
-		return nil, err
-	}
-
-	if entry == nil {
-		return nil, nil
+	if configData == nil {
+		return nil, fmt.Errorf("configuration data does not exist")
 	}
 
 	config := new(hwcConfig)
-	if err := entry.DecodeJSON(&config); err != nil {
-		return nil, fmt.Errorf("error reading root configuration: %w", err)
-	}
-
-	return config, nil
-}
-
-func (b *hwcBackend) pathConfigRead(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
-	config, err := getConfig(ctx, req.Storage)
+	err = configData.DecodeJSON(&config)
 	if err != nil {
 		return nil, err
 	}
 
 	return &logical.Response{
 		Data: map[string]interface{}{
-			"region":     config.Region,
-			"access_key": config.AccessKey,
-			"secret_key": config.SecretKey,
+			"region":            config.Region,
+			"access_key":        config.AccessKey,
+			"secret_key":        config.SecretKey,
+			"management_agency": config.ManagementAgency,
 		},
 	}, nil
 }
 
 func (b *hwcBackend) pathConfigWrite(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
-	config, err := getConfig(ctx, req.Storage)
+	configData, err := req.Storage.Get(ctx, req.Path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get configure data at %s", req.Path)
 	}
 
-	createOperation := (req.Operation == logical.CreateOperation)
-
-	if config == nil {
-		if !createOperation {
-			return nil, errors.New("config not found during update operation")
-		}
-		config = new(hwcConfig)
+	if configData != nil {
+		return nil, fmt.Errorf("the path %s already exists, use vault patch to update", req.Path)
 	}
+
+	config := new(hwcConfig)
 
 	if accessKey, ok := data.GetOk("access_key"); ok {
 		config.AccessKey = accessKey.(string)
-	} else if !ok && createOperation {
+	} else {
 		return nil, fmt.Errorf("missing access_key in configuration")
 	}
 
 	if secretKey, ok := data.GetOk("secret_key"); ok {
 		config.SecretKey = secretKey.(string)
-	} else if !ok && createOperation {
+	} else {
 		return nil, fmt.Errorf("missing secret_key in configuration")
 	}
 
 	if newregion, ok := data.GetOk("region"); ok {
 		config.Region = newregion.(string)
-	} else if !ok && createOperation {
+	} else {
 		return nil, fmt.Errorf("missing region paramter in configuration")
 	}
 
-	entry, err := logical.StorageEntryJSON(configStoragePath, config)
+	if managementAgency, ok := data.GetOk("management_agency"); ok {
+		config.ManagementAgency = managementAgency.(string)
+	}
+
+	err = b.writeDataToPath(ctx, req, &config)
+
 	if err != nil {
 		return nil, err
 	}
 
-	if err := req.Storage.Put(ctx, entry); err != nil {
-		return nil, err
-	}
-
-	b.reset()
-
 	return nil, nil
 }
 
-func (b *hwcBackend) pathConfigDelete(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
-	err := req.Storage.Delete(ctx, configStoragePath)
-
-	if err == nil {
-		b.reset()
+func (b *hwcBackend) pathConfigUpdate(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+	configData, err := req.Storage.Get(ctx, req.Path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get configuration data: %s", err.Error())
+	}
+	if configData == nil {
+		return nil, fmt.Errorf("the configuration data does not exist")
+	}
+	config := new(hwcConfig)
+	err = configData.DecodeJSON(&config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode configuration data at %s", req.Path)
 	}
 
-	return nil, err
+	if accessKey, ok := data.GetOk("access_key"); ok {
+		config.AccessKey = accessKey.(string)
+	}
+
+	if secretKey, ok := data.GetOk("secret_key"); ok {
+		config.SecretKey = secretKey.(string)
+	}
+
+	if newregion, ok := data.GetOk("region"); ok {
+		config.Region = newregion.(string)
+	}
+
+	if managementAgency, ok := data.GetOk("management_agency"); ok {
+		config.ManagementAgency = managementAgency.(string)
+	}
+
+	err = b.writeDataToPath(ctx, req, &config)
+	if err != nil {
+		return nil, err
+	}
+
+	return nil, nil
 }

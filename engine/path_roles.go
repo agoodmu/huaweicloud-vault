@@ -66,7 +66,7 @@ func pathRole(b *hwcBackend) []*framework.Path {
 				logical.UpdateOperation: &framework.PathOperation{Callback: b.pathTempRoleUpdate},
 				logical.DeleteOperation: &framework.PathOperation{Callback: b.deletePath},
 			},
-			ExistenceCheck:  b.pathConfigExistenceCheck,
+			ExistenceCheck:  b.pathExistenceCheck,
 			HelpSynopsis:    pathRoleHelpSynopsis,
 			HelpDescription: pathRoleHelpDescription,
 		},
@@ -75,7 +75,7 @@ func pathRole(b *hwcBackend) []*framework.Path {
 			Operations: map[logical.Operation]framework.OperationHandler{
 				logical.ListOperation: &framework.PathOperation{Callback: b.listPaths},
 			},
-			ExistenceCheck:  b.pathConfigExistenceCheck,
+			ExistenceCheck:  b.pathExistenceCheck,
 			HelpSynopsis:    pathRoleListHelpSynopsis,
 			HelpDescription: pathRoleListHelpDescription,
 		},

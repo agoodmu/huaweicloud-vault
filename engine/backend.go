@@ -2,7 +2,6 @@ package engine
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -36,7 +35,7 @@ func (b *hwcBackend) invalidate(ctx context.Context, key string) {
 	}
 }
 
-func (b *hwcBackend) getClient(ctx context.Context, s logical.Storage) (*iam.IamClient, error) {
+func (b *hwcBackend) getClient(ctx context.Context, req *logical.Request) (*iam.IamClient, error) {
 	b.lock.RLock()
 	defer b.lock.RUnlock()
 
@@ -44,13 +43,19 @@ func (b *hwcBackend) getClient(ctx context.Context, s logical.Storage) (*iam.Iam
 		return b.client, nil
 	}
 
-	config, err := getConfig(ctx, s)
+	configData, err := b.readDataFromPath(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
-	if config == nil {
-		return nil, errors.New("backend configuration does not exists")
+	if configData == nil {
+		return nil, fmt.Errorf("backend configuration does not exists")
+	}
+	config := new(hwcConfig)
+
+	err = configData.DecodeJSON(&config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode configuration data: %s", req.Path)
 	}
 
 	b.client, err = newClient(config)
@@ -74,7 +79,7 @@ func backend() *hwcBackend {
 			},
 		},
 		Paths:       framework.PathAppend(pathRole(&b), pathCredentials(&b), []*framework.Path{pathConfig(&b)}),
-		Secrets:     []*framework.Secret{b.huaweicloudTemporaryToken()},
+		Secrets:     []*framework.Secret{b.huaweicloudTemporaryToken(), b.huaweicloudStaticAKSK()},
 		BackendType: logical.TypeLogical,
 		Invalidate:  b.invalidate,
 	}
@@ -131,4 +136,14 @@ func (b *hwcBackend) listPaths(ctx context.Context, req *logical.Request, d *fra
 		return nil, err
 	}
 	return logical.ListResponse(entries), nil
+}
+
+// pathExistenceCheck verifies if the path exists.
+func (b *hwcBackend) pathExistenceCheck(ctx context.Context, req *logical.Request, data *framework.FieldData) (bool, error) {
+	out, err := req.Storage.Get(ctx, req.Path)
+	if err != nil {
+		return false, fmt.Errorf("existence check failed: %w, path is %s", err, req.Path)
+	}
+
+	return out != nil, nil
 }

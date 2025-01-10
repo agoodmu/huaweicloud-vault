@@ -34,7 +34,7 @@ func pathCredentials(b *hwcBackend) []*framework.Path {
 			Callbacks: map[logical.Operation]framework.OperationFunc{
 				logical.ReadOperation: b.pathTempCredentialsRead,
 			},
-			ExistenceCheck:  b.pathConfigExistenceCheck,
+			ExistenceCheck:  b.pathExistenceCheck,
 			HelpSynopsis:    pathCredentialsHelpSyn,
 			HelpDescription: pathCredentialsHelpDesc,
 		},
@@ -56,7 +56,7 @@ func (b *hwcBackend) pathTempCredentialsRead(ctx context.Context, req *logical.R
 		return nil, fmt.Errorf("failed to decode role data: %s", err.Error())
 	}
 
-	client, err := b.getClient(ctx, req.Storage)
+	client, err := b.getClient(ctx, req)
 	if err != nil {
 		return logical.ErrorResponse("failed to get backend client: %s", err.Error()), err
 	}
