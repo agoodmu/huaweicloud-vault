@@ -34,6 +34,7 @@ func (b *hwcBackend) pathStaticRoleRead(ctx context.Context, req *logical.Reques
 			"name":         role.Name,
 			"account_name": role.AccountName,
 			"permissions":  role.Permissions,
+			"enabled":      role.Enabled,
 			"ttl":          role.TTL.Seconds(),
 			"max_ttl":      role.MaxTTL.Seconds(),
 		},
@@ -58,8 +59,15 @@ func (b *hwcBackend) pathStaticRoleWrite(ctx context.Context, req *logical.Reque
 		return nil, fmt.Errorf("permissions parameter is missing")
 	}
 
+	if descriptions, ok := d.GetOk("description"); ok {
+		roleEntry.Description = descriptions.(string)
+	} else {
+		return nil, fmt.Errorf("the description of the role is missing")
+	}
+
 	roleEntry.TTL = time.Duration(d.Get("ttl").(int)) * time.Second
 	roleEntry.MaxTTL = time.Duration(d.Get("max_ttl").(int)) * time.Second
+	roleEntry.Enabled = d.Get("enabled").(bool)
 
 	if roleEntry.MaxTTL != 0 && roleEntry.TTL > roleEntry.MaxTTL {
 		return nil, fmt.Errorf("ttl cannot be greater than max_ttl")
@@ -95,6 +103,14 @@ func (b *hwcBackend) pathStaticRoleUpdate(ctx context.Context, req *logical.Requ
 
 	if permissions, ok := d.GetOk("permissions"); ok {
 		roleEntry.Permissions = permissions.([]string)
+	}
+
+	if enableRole, ok := d.GetOk("enabled"); ok {
+		roleEntry.Enabled = enableRole.(bool)
+	}
+
+	if descriptions, ok := d.GetOk("description"); ok {
+		roleEntry.Description = descriptions.(string)
 	}
 
 	if ttlRaw, ok := d.GetOk("ttl"); ok {

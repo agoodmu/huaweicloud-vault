@@ -29,6 +29,8 @@ type hwcStaticAKSKRoleEntry struct {
 	Name        string        `json:"name"`
 	AccountName string        `json:"account_name"`
 	Permissions []string      `json:"permissions"`
+	Enabled     bool          `json:"enabled"`
+	Description string        `json:"description"`
 	TTL         time.Duration `json:"ttl"`
 	MaxTTL      time.Duration `json:"max_ttl"`
 }
@@ -51,6 +53,17 @@ func pathRole(b *hwcBackend) []*framework.Path {
 				"agency_name": {
 					Type:        framework.TypeString,
 					Description: "The agency name which will be assumed by the plugin",
+					Required:    true,
+				},
+				"enabled": {
+					Type:        framework.TypeBool,
+					Description: "If the AK/SK is enabled",
+					Required:    false,
+					Default:     true,
+				},
+				"description": {
+					Type:        framework.TypeString,
+					Description: "Describe the usage of the AK/SK",
 					Required:    true,
 				},
 				"ttl": {

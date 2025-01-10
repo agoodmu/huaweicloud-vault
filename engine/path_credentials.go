@@ -38,6 +38,60 @@ func pathCredentials(b *hwcBackend) []*framework.Path {
 			HelpSynopsis:    pathCredentialsHelpSyn,
 			HelpDescription: pathCredentialsHelpDesc,
 		},
+		{
+			Pattern: "creds/static/" + framework.GenericNameRegex("name"),
+			Fields: map[string]*framework.FieldSchema{
+				"name": {
+					Type:        framework.TypeLowerCaseString,
+					Description: "Name of the role",
+					Required:    true,
+				},
+				"access_key": {
+					Type:        framework.TypeString,
+					Description: "The Huawei Cloud Access Key",
+					Required:    true,
+				},
+				"secret_key": {
+					Type:        framework.TypeString,
+					Description: "The Huawei Cloud Secret Key",
+					Required:    true,
+				},
+				"account_id": {
+					Type:        framework.TypeString,
+					Description: "The id of the account to which the ak/sk belong",
+					Required:    true,
+				},
+				"user_id": {
+					Type:        framework.TypeString,
+					Description: "The id of the user to which the ak/sk belong",
+					Required:    true,
+				},
+				"creation_time": {
+					Type:        framework.TypeTime,
+					Description: "The timestamp at which the ak/sk is created",
+					Required:    true,
+				},
+				"ttl": {
+					Type:        framework.TypeDurationSecond,
+					Description: "Default lease for generated credentials. If not set or set to 0, will use system default.",
+					Required:    false,
+					Default:     7200,
+				},
+				"max_ttl": {
+					Type:        framework.TypeDurationSecond,
+					Description: "Maximum time for role. If not set or set to 0, will use system default.",
+					Required:    false,
+					Default:     86400,
+				},
+			},
+			Callbacks: map[logical.Operation]framework.OperationFunc{
+				logical.CreateOperation: b.pathStaticAKSKWrite,
+				logical.ReadOperation:   b.pathTempCredentialsRead,
+			},
+			ExistenceCheck:  b.pathExistenceCheck,
+			HelpSynopsis:    pathCredentialsHelpSyn,
+			HelpDescription: pathCredentialsHelpDesc,
+		},
 	}
 }
 
