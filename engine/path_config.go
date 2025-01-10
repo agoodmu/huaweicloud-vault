@@ -97,15 +97,6 @@ func (b *hwcBackend) pathConfigRead(ctx context.Context, req *logical.Request, d
 }
 
 func (b *hwcBackend) pathConfigWrite(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
-	configData, err := req.Storage.Get(ctx, req.Path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get configure data at %s", req.Path)
-	}
-
-	if configData != nil {
-		return nil, fmt.Errorf("the path %s already exists, use vault patch to update", req.Path)
-	}
-
 	config := new(hwcConfig)
 
 	if accessKey, ok := data.GetOk("access_key"); ok {
@@ -130,7 +121,7 @@ func (b *hwcBackend) pathConfigWrite(ctx context.Context, req *logical.Request, 
 		config.ManagementAgency = managementAgency.(string)
 	}
 
-	err = b.writeDataToPath(ctx, req, &config)
+	err := b.writeDataToPath(ctx, req, &config)
 
 	if err != nil {
 		return nil, err
@@ -144,9 +135,7 @@ func (b *hwcBackend) pathConfigUpdate(ctx context.Context, req *logical.Request,
 	if err != nil {
 		return nil, fmt.Errorf("failed to get configuration data: %s", err.Error())
 	}
-	if configData == nil {
-		return nil, fmt.Errorf("the configuration data does not exist")
-	}
+
 	config := new(hwcConfig)
 	err = configData.DecodeJSON(&config)
 	if err != nil {
