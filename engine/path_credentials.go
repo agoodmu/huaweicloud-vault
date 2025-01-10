@@ -56,7 +56,7 @@ func (b *hwcBackend) pathTempCredentialsRead(ctx context.Context, req *logical.R
 		return nil, fmt.Errorf("failed to decode role data: %s", err.Error())
 	}
 
-	client, err := b.getClient(ctx, req.Storage, "role/"+roleName)
+	client, err := b.getClient(ctx, req.Storage)
 	if err != nil {
 		return logical.ErrorResponse("failed to get backend client: %s", err.Error()), err
 	}
