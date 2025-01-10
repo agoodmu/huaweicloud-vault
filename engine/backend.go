@@ -35,7 +35,7 @@ func (b *hwcBackend) invalidate(ctx context.Context, key string) {
 	}
 }
 
-func (b *hwcBackend) getClient(ctx context.Context, req *logical.Request) (*iam.IamClient, error) {
+func (b *hwcBackend) getClient(ctx context.Context, s logical.Storage, configPath string) (*iam.IamClient, error) {
 	b.lock.RLock()
 	defer b.lock.RUnlock()
 
@@ -43,7 +43,7 @@ func (b *hwcBackend) getClient(ctx context.Context, req *logical.Request) (*iam.
 		return b.client, nil
 	}
 
-	configData, err := b.readDataFromPath(ctx, req)
+	configData, err := b.readDataFromPath(ctx, s, configPath)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func (b *hwcBackend) getClient(ctx context.Context, req *logical.Request) (*iam.
 
 	err = configData.DecodeJSON(&config)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode configuration data: %s", req.Path)
+		return nil, fmt.Errorf("failed to decode configuration data: %s", configPath)
 	}
 
 	b.client, err = newClient(config)
@@ -109,8 +109,8 @@ func (b *hwcBackend) writeDataToPath(ctx context.Context, req *logical.Request, 
 	return nil
 }
 
-func (b *hwcBackend) readDataFromPath(ctx context.Context, req *logical.Request) (*logical.StorageEntry, error) {
-	entry, err := req.Storage.Get(ctx, req.Path)
+func (b *hwcBackend) readDataFromPath(ctx context.Context, s logical.Storage, path string) (*logical.StorageEntry, error) {
+	entry, err := s.Get(ctx, path)
 	if err != nil {
 		return nil, err
 	}
