@@ -81,7 +81,7 @@ func (b *hwcBackend) pathConfigRead(ctx context.Context, req *logical.Request, d
 	}
 
 	config := new(hwcConfig)
-	err = configData.DecodeJSON(&config)
+	err = configData.DecodeJSON(config)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +137,7 @@ func (b *hwcBackend) pathConfigUpdate(ctx context.Context, req *logical.Request,
 	}
 
 	config := new(hwcConfig)
-	err = configData.DecodeJSON(&config)
+	err = configData.DecodeJSON(config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode configuration data at %s", req.Path)
 	}

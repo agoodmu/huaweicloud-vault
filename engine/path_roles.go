@@ -27,6 +27,14 @@ type hwcTempRoleEntry struct {
 	MaxTTL      time.Duration `json:"max_ttl"`
 }
 
+type hwcStaticAKSKRoleEntry struct {
+	Name        string        `json:"name"`
+	AccountName string        `json:"account_name"`
+	Permissions []string      `json:"permissions"`
+	TTL         time.Duration `json:"ttl"`
+	MaxTTL      time.Duration `json:"max_ttl"`
+}
+
 func pathRole(b *hwcBackend) []*framework.Path {
 	return []*framework.Path{
 		{
@@ -64,6 +72,46 @@ func pathRole(b *hwcBackend) []*framework.Path {
 				logical.ReadOperation:   &framework.PathOperation{Callback: b.pathTempRoleRead},
 				logical.CreateOperation: &framework.PathOperation{Callback: b.pathTempRoleWrite},
 				logical.UpdateOperation: &framework.PathOperation{Callback: b.pathTempRoleUpdate},
+				logical.DeleteOperation: &framework.PathOperation{Callback: b.deletePath},
+			},
+			ExistenceCheck:  b.pathExistenceCheck,
+			HelpSynopsis:    pathRoleHelpSynopsis,
+			HelpDescription: pathRoleHelpDescription,
+		},
+		{
+			Pattern: "role/static/" + framework.GenericNameRegex("name"),
+			Fields: map[string]*framework.FieldSchema{
+				"name": {
+					Type:        framework.TypeLowerCaseString,
+					Description: "Name of the role",
+					Required:    true,
+				},
+				"account_name": {
+					Type:        framework.TypeString,
+					Description: "The domain name of the target account",
+					Required:    true,
+				},
+				"permissions": {
+					Type:        framework.TypeStringSlice,
+					Description: "The Huawei Cloud permissions that associate with the role",
+					Required:    true,
+				},
+				"ttl": {
+					Type:        framework.TypeDurationSecond,
+					Description: "Default lease for generated credentials. If not set or set to 0, will use system default.",
+					Required:    false,
+					Default:     2592000,
+				},
+				"max_ttl": {
+					Type:        framework.TypeDurationSecond,
+					Description: "Maximum time for role. If not set or set to 0, will use system default.",
+					Required:    false,
+				},
+			},
+			Operations: map[logical.Operation]framework.OperationHandler{
+				logical.ReadOperation:   &framework.PathOperation{Callback: b.pathStaticRoleRead},
+				logical.CreateOperation: &framework.PathOperation{Callback: b.pathStaticRoleWrite},
+				logical.UpdateOperation: &framework.PathOperation{Callback: b.pathStaticRoleUpdate},
 				logical.DeleteOperation: &framework.PathOperation{Callback: b.deletePath},
 			},
 			ExistenceCheck:  b.pathExistenceCheck,
@@ -114,22 +162,12 @@ func (b *hwcBackend) pathTempRoleRead(ctx context.Context, req *logical.Request,
 }
 
 func (b *hwcBackend) pathTempRoleWrite(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
-	var roleEntry hwcTempRoleEntry
-	name, ok := d.GetOk("name")
+	roleEntry := new(hwcTempRoleEntry)
+	_, ok := d.GetOk("name")
 	if !ok {
 		return logical.ErrorResponse("the name must exist under the path %s", req.Path), nil
 	}
 
-	entry, err := req.Storage.Get(ctx, req.Path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch data from %s", req.Path)
-	}
-
-	if entry != nil {
-		return nil, fmt.Errorf("the path already exists, use patch subcommand to modify it if you want to change the path")
-	}
-
-	roleEntry = hwcTempRoleEntry{Name: name.(string)}
 	if accountName, ok := d.GetOk("account_name"); ok {
 		roleEntry.AccountName = accountName.(string)
 	} else {
@@ -170,13 +208,9 @@ func (b *hwcBackend) pathTempRoleUpdate(ctx context.Context, req *logical.Reques
 		return nil, fmt.Errorf("failed to fetch data from %s", req.Path)
 	}
 
-	if entry == nil {
-		return nil, fmt.Errorf("data for path %s is nil", req.Path)
-	}
+	roleEntry := new(hwcTempRoleEntry)
 
-	var roleEntry *hwcTempRoleEntry
-
-	err = entry.DecodeJSON(&roleEntry)
+	err = entry.DecodeJSON(roleEntry)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode data %s: %s", req.Path, err.Error())
 	}
