@@ -163,11 +163,11 @@ func (b *hwcBackend) pathTempRoleRead(ctx context.Context, req *logical.Request,
 
 func (b *hwcBackend) pathTempRoleWrite(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	roleEntry := new(hwcTempRoleEntry)
-	_, ok := d.GetOk("name")
+	roleName, ok := d.GetOk("name")
 	if !ok {
 		return logical.ErrorResponse("the name must exist under the path %s", req.Path), nil
 	}
-
+	roleEntry.Name = roleName.(string)
 	if accountName, ok := d.GetOk("account_name"); ok {
 		roleEntry.AccountName = accountName.(string)
 	} else {

@@ -42,7 +42,11 @@ func (b *hwcBackend) pathStaticRoleRead(ctx context.Context, req *logical.Reques
 
 func (b *hwcBackend) pathStaticRoleWrite(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	roleEntry := new(hwcStaticAKSKRoleEntry)
-
+	roleName, ok := d.GetOk("name")
+	if !ok {
+		return nil, fmt.Errorf("missing role name")
+	}
+	roleEntry.Name = roleName.(string)
 	if accountName, ok := d.GetOk("account_name"); ok {
 		roleEntry.AccountName = accountName.(string)
 	} else {
@@ -69,11 +73,6 @@ func (b *hwcBackend) pathStaticRoleWrite(ctx context.Context, req *logical.Reque
 }
 
 func (b *hwcBackend) pathStaticRoleUpdate(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
-	_, ok := d.GetOk("name")
-	if !ok {
-		return logical.ErrorResponse("missing role name"), nil
-	}
-
 	entry, err := req.Storage.Get(ctx, req.Path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch data from %s", req.Path)
