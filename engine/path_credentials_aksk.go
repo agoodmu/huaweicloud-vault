@@ -174,3 +174,23 @@ func (b *hwcBackend) pathStaticAKSKWrite(ctx context.Context, req *logical.Reque
 	}
 	return nil, nil
 }
+
+func (b *hwcBackend) pathStaticAKSKRead(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+	akskEntry := new(hwcAKSKEntry)
+	entryData, err := b.readDataFromPath(ctx, req.Storage, req.Path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read data at %s: %s", req.Path, err.Error())
+	}
+	if entryData == nil {
+		return nil, fmt.Errorf("path %s does not contain any data", req.Path)
+	}
+	err = entryData.DecodeJSON(akskEntry)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode data: %s", err.Error())
+	}
+	return b.Secret(StaticAKSK).Response(map[string]interface{}{
+		"name":       akskEntry.Name,
+		"access_key": akskEntry.AccessKey,
+		"secret_key": akskEntry.SecretKey,
+	}, nil), nil
+}

@@ -86,7 +86,7 @@ func pathCredentials(b *hwcBackend) []*framework.Path {
 			},
 			Callbacks: map[logical.Operation]framework.OperationFunc{
 				logical.CreateOperation: b.pathStaticAKSKWrite,
-				logical.ReadOperation:   b.pathTempCredentialsRead,
+				logical.ReadOperation:   b.pathStaticAKSKRead,
 			},
 			ExistenceCheck:  b.pathExistenceCheck,
 			HelpSynopsis:    pathCredentialsHelpSyn,
