@@ -35,6 +35,7 @@ func (b *hwcBackend) pathStaticRoleRead(ctx context.Context, req *logical.Reques
 			"account_name": role.AccountName,
 			"permissions":  role.Permissions,
 			"enabled":      role.Enabled,
+			"decription":   role.Description,
 			"ttl":          role.TTL.Seconds(),
 			"max_ttl":      role.MaxTTL.Seconds(),
 		},
@@ -53,6 +54,7 @@ func (b *hwcBackend) pathStaticRoleWrite(ctx context.Context, req *logical.Reque
 	} else {
 		return nil, fmt.Errorf("account_name parameter is missing")
 	}
+
 	if permissions, ok := d.GetOk("permissions"); ok {
 		roleEntry.Permissions = permissions.([]string)
 	} else {
