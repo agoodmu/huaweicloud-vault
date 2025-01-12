@@ -55,12 +55,6 @@ func pathRole(b *hwcBackend) []*framework.Path {
 					Description: "The agency name which will be assumed by the plugin",
 					Required:    true,
 				},
-				"enabled": {
-					Type:        framework.TypeBool,
-					Description: "If the AK/SK is enabled",
-					Required:    false,
-					Default:     true,
-				},
 				"ttl": {
 					Type:        framework.TypeDurationSecond,
 					Description: "Default lease for generated credentials. If not set or set to 0, will use system default.",
@@ -106,6 +100,12 @@ func pathRole(b *hwcBackend) []*framework.Path {
 					Type:        framework.TypeString,
 					Description: "Describe the usage of the AK/SK",
 					Required:    true,
+				},
+				"enabled": {
+					Type:        framework.TypeBool,
+					Description: "If the AK/SK is enabled",
+					Required:    false,
+					Default:     true,
 				},
 				"ttl": {
 					Type:        framework.TypeDurationSecond,
