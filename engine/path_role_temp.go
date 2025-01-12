@@ -69,7 +69,7 @@ func (b *hwcBackend) pathTempRoleWrite(ctx context.Context, req *logical.Request
 		return logical.ErrorResponse("ttl cannot be greater than max_ttl"), nil
 	}
 
-	if err := b.writeDataToPath(ctx, req, roleEntry); err != nil {
+	if err := b.writeDataToPath(ctx, req.Storage, req.Path, roleEntry); err != nil {
 		return nil, fmt.Errorf("failed to write data to the path %s", req.Path)
 	}
 
@@ -114,7 +114,7 @@ func (b *hwcBackend) pathTempRoleUpdate(ctx context.Context, req *logical.Reques
 		return logical.ErrorResponse("ttl cannot be greater than max_ttl"), nil
 	}
 
-	if err := b.writeDataToPath(ctx, req, roleEntry); err != nil {
+	if err := b.writeDataToPath(ctx, req.Storage, req.Path, roleEntry); err != nil {
 		return nil, fmt.Errorf("failed to write data to the path %s", req.Path)
 	}
 	return nil, nil

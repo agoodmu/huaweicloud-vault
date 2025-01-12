@@ -121,7 +121,7 @@ func (b *hwcBackend) pathConfigWrite(ctx context.Context, req *logical.Request, 
 		config.ManagementAgency = managementAgency.(string)
 	}
 
-	err := b.writeDataToPath(ctx, req, &config)
+	err := b.writeDataToPath(ctx, req.Storage, configStoragePath, config)
 
 	if err != nil {
 		return nil, err
@@ -158,7 +158,7 @@ func (b *hwcBackend) pathConfigUpdate(ctx context.Context, req *logical.Request,
 		config.ManagementAgency = managementAgency.(string)
 	}
 
-	err = b.writeDataToPath(ctx, req, &config)
+	err = b.writeDataToPath(ctx, req.Storage, configStoragePath, config)
 	if err != nil {
 		return nil, err
 	}

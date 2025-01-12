@@ -94,16 +94,16 @@ func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend,
 	return b, nil
 }
 
-func (b *hwcBackend) writeDataToPath(ctx context.Context, req *logical.Request, data interface{}) error {
-	entry, err := logical.StorageEntryJSON(req.Path, data)
+func (b *hwcBackend) writeDataToPath(ctx context.Context, s logical.Storage, path string, data interface{}) error {
+	entry, err := logical.StorageEntryJSON(path, data)
 	if err != nil {
 		return err
 	}
 	if entry == nil {
-		return fmt.Errorf("failed to create storage entry for the path %s", req.Path)
+		return fmt.Errorf("failed to create storage entry for the path %s", path)
 	}
 
-	if err := req.Storage.Put(ctx, entry); err != nil {
+	if err := s.Put(ctx, entry); err != nil {
 		return err
 	}
 	return nil
