@@ -3,7 +3,6 @@ package engine
 import (
 	"context"
 	"fmt"
-	"slices"
 	"time"
 
 	"github.com/hashicorp/vault/sdk/framework"
@@ -159,35 +158,33 @@ func (b *hwcBackend) pathStaticRoleWrite(ctx context.Context, req *logical.Reque
 	if err != nil {
 		return nil, fmt.Errorf("failed to add user %s to the group", err.Error())
 	}
-	roleIds := make([]string, 5)
-	hwcPolicyResult, err := newClient.KeystoneListPermissions(&model.KeystoneListPermissionsRequest{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list permissions: %s", err.Error())
-	}
-
-	for _, policy := range *hwcPolicyResult.Roles {
-		if slices.Contains(roleEntry.Permissions, *policy.DisplayName) {
-			roleIds = append(roleIds, policy.Id)
-		}
-	}
-	if len(roleIds) == 0 {
-		return nil, fmt.Errorf("failed to find the required permission on Huawei Cloud")
-	}
-
-	roleEntry.AccountID = globalAuth.DomainId
-
-	b.Logger().Info("Show Info: ", "account_name", roleEntry.Name, "account_id", roleEntry.AccountID, "user_id", userResult.User.Id, "group_id", groupResult.Group.Id)
-
-	for _, roleId := range roleIds {
-		_, err := newClient.UpdateDomainGroupInheritRole(&model.UpdateDomainGroupInheritRoleRequest{
-			DomainId: roleEntry.AccountID,
-			RoleId:   roleId,
-			GroupId:  groupResult.Group.Id,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to assign permission to group: %s", err.Error())
-		}
-	}
+	//	roleIds := make([]string, 5)
+	//	hwcPolicyResult, err := newClient.KeystoneListPermissions(&model.KeystoneListPermissionsRequest{})
+	//	if err != nil {
+	//		return nil, fmt.Errorf("failed to list permissions: %s", err.Error())
+	//	}
+	//
+	//	for _, policy := range *hwcPolicyResult.Roles {
+	//		if slices.Contains(roleEntry.Permissions, *policy.DisplayName) {
+	//			roleIds = append(roleIds, policy.Id)
+	//		}
+	//	}
+	//	if len(roleIds) == 0 {
+	//		return nil, fmt.Errorf("failed to find the required permission on Huawei Cloud")
+	//	}
+	//
+	//	roleEntry.AccountID = globalAuth.DomainId
+	//
+	//	for _, roleId := range roleIds {
+	//		_, err := newClient.UpdateDomainGroupInheritRole(&model.UpdateDomainGroupInheritRoleRequest{
+	//			DomainId: roleEntry.AccountID,
+	//			RoleId:   roleId,
+	//			GroupId:  groupResult.Group.Id,
+	//		})
+	//		if err != nil {
+	//			return nil, fmt.Errorf("failed to assign permission to group: %s", err.Error())
+	//		}
+	//	}
 
 	akskResult, err := newClient.CreatePermanentAccessKey(&model.CreatePermanentAccessKeyRequest{
 		Body: &model.CreatePermanentAccessKeyRequestBody{
