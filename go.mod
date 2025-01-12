@@ -37,7 +37,7 @@ require (
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/hashicorp/vault/sdk v0.14.0 // indirect
 	github.com/hashicorp/yamux v0.1.1 // indirect
-	github.com/huaweicloud/huaweicloud-sdk-go-v3 v0.1.130 // indirect
+	github.com/huaweicloud/huaweicloud-sdk-go-v3 v0.1.131 // indirect
 	github.com/joshlf/go-acl v0.0.0-20200411065538-eae00ae38531 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
@@ -76,5 +76,6 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240812133136-8ffd90a71988 // indirect
 	google.golang.org/grpc v1.65.0 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
+	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

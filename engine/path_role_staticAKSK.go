@@ -38,6 +38,7 @@ func (b *hwcBackend) pathStaticRoleRead(ctx context.Context, req *logical.Reques
 		Data: map[string]interface{}{
 			"name":         role.Name,
 			"account_name": role.AccountName,
+			"account_id":   role.AccountID,
 			"permissions":  role.Permissions,
 			"enabled":      role.Enabled,
 			"decription":   role.Description,
@@ -173,18 +174,13 @@ func (b *hwcBackend) pathStaticRoleWrite(ctx context.Context, req *logical.Reque
 		return nil, fmt.Errorf("failed to find the required permission on Huawei Cloud")
 	}
 
-	domainInfo, err := newClient.KeystoneListAuthDomains(&model.KeystoneListAuthDomainsRequest{})
-	domains := make([]string, 1)
-	for _, domain := range *domainInfo.Domains {
-		domains = append(domains, domain.Id)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to get domain id: %s", err.Error())
-	}
+	roleEntry.AccountID = globalAuth.DomainId
+
+	b.Logger().Info("Show Info: ", "account_name", roleEntry.Name, "account_id", roleEntry.AccountID, "user_id", userResult.User.Id, "group_id", groupResult.Group.Id)
 
 	for _, roleId := range roleIds {
 		_, err := newClient.UpdateDomainGroupInheritRole(&model.UpdateDomainGroupInheritRoleRequest{
-			DomainId: domains[0],
+			DomainId: roleEntry.AccountID,
 			RoleId:   roleId,
 			GroupId:  groupResult.Group.Id,
 		})
@@ -207,7 +203,7 @@ func (b *hwcBackend) pathStaticRoleWrite(ctx context.Context, req *logical.Reque
 		"secret_key":    akskResult.Credential.Secret,
 		"user_id":       akskResult.Credential.UserId,
 		"creation_time": akskResult.Credential.CreateTime,
-		"account_id":    domains[0],
+		"account_id":    roleEntry.AccountID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to store the credentials: %s", err.Error())

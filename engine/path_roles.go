@@ -28,6 +28,7 @@ type hwcTempRoleEntry struct {
 type hwcStaticAKSKRoleEntry struct {
 	Name        string        `json:"name"`
 	AccountName string        `json:"account_name"`
+	AccountID   string        `json:"account_id"`
 	Permissions []string      `json:"permissions"`
 	Enabled     bool          `json:"enabled"`
 	Description string        `json:"description"`
@@ -90,6 +91,11 @@ func pathRole(b *hwcBackend) []*framework.Path {
 					Type:        framework.TypeString,
 					Description: "The domain name of the target account",
 					Required:    true,
+				},
+				"account_id": {
+					Type:        framework.TypeString,
+					Description: "The domain id of the target account",
+					Required:    false,
 				},
 				"permissions": {
 					Type:        framework.TypeStringSlice,
